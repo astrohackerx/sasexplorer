@@ -1,0 +1,24 @@
+{
+  "name": "sas-indexer",
+  "version": "1.0.0",
+  "description": "Solana Attestation Service blockchain indexer",
+  "type": "module",
+  "scripts": {
+    "start": "node --loader ts-node/esm src/index.ts",
+    "start:continuous": "RUN_MODE=continuous node --loader ts-node/esm src/index.ts",
+    "dev": "node --loader ts-node/esm --watch src/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.95.8",
+    "@supabase/supabase-js": "^2.47.10",
+    "borsher": "^4.0.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/bs58": "^4.0.4",
+    "@types/node": "^22.10.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}
