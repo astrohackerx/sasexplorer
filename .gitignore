@@ -1,6 +1,6 @@
 .env
 frontend/node_modules/
-backend/node_modules/
+indexer/node_modules/
 frontend/.vite/
 backend/.vite/
 frontend/.env
