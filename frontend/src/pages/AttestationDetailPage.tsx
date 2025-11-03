@@ -114,7 +114,15 @@ export function AttestationDetailPage() {
         <div className="detail-card">
           <h2>Decoded Data</h2>
           {attestation.data_decoded ? (
-            <pre className="json-data">{JSON.stringify(attestation.data_decoded, null, 2)}</pre>
+            <div className="schema-fields">
+              {Object.entries(attestation.data_decoded as Record<string, any>).map(([key, value], index) => (
+                <div key={index} className="field-item">
+                  <span className="field-index">{index + 1}.</span>
+                  <span className="field-name">{key}</span>
+                  <span className="field-type">{String(value)}</span>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="empty-state">No decoded data available</div>
           )}
