@@ -5,6 +5,7 @@ import {
   decodeCredential,
   decodeSchema,
   decodeAttestation,
+  decodeAttestationData,
   DISCRIMINATORS,
 } from './decoder.js';
 import {
@@ -13,6 +14,7 @@ import {
   insertAttestationsBatch,
   getIndexerState,
   updateIndexerState,
+  loadAllSchemas,
 } from './supabase.js';
 import type { Credential, Schema, Attestation, Transaction } from './types.js';
 
@@ -129,7 +131,7 @@ async function scanCredentials(affectedAccounts?: Set<string>): Promise<void> {
   }
 }
 
-async function scanSchemas(affectedAccounts?: Set<string>): Promise<void> {
+async function scanSchemas(affectedAccounts?: Set<string>): Promise<Map<string, { layout: number[]; field_names: string[] }>> {
   console.log('\n🔍 Scanning for Schemas...');
 
   const filters: GetProgramAccountsFilter[] = [
@@ -144,6 +146,7 @@ async function scanSchemas(affectedAccounts?: Set<string>): Promise<void> {
   console.log(`   Found ${accounts.length} schema accounts`);
 
   const schemas: Schema[] = [];
+  const schemaMap = new Map<string, { layout: number[]; field_names: string[] }>();
 
   for (const { pubkey, account } of accounts) {
     const pubkeyStr = pubkey.toBase58();
@@ -174,6 +177,11 @@ async function scanSchemas(affectedAccounts?: Set<string>): Promise<void> {
     };
 
     schemas.push(schema);
+    // Store schema info in memory for attestation decoding
+    schemaMap.set(pubkeyStr, {
+      layout: decoded.layout,
+      field_names: decoded.field_names,
+    });
     console.log(`   ✅ ${decoded.name} (${pubkeyStr.substring(0, 8)}...)`);
   }
 
@@ -181,9 +189,14 @@ async function scanSchemas(affectedAccounts?: Set<string>): Promise<void> {
     await insertSchemasBatch(schemas);
     console.log(`   💾 Inserted ${schemas.length} schemas`);
   }
+
+  return schemaMap;
 }
 
-async function scanAttestations(affectedAccounts?: Set<string>): Promise<void> {
+async function scanAttestations(
+  schemaMap: Map<string, { layout: number[]; field_names: string[] }>,
+  affectedAccounts?: Set<string>
+): Promise<void> {
   console.log('\n🔍 Scanning for Attestations...');
 
   const filters: GetProgramAccountsFilter[] = [
@@ -216,6 +229,17 @@ async function scanAttestations(affectedAccounts?: Set<string>): Promise<void> {
       continue;
     }
 
+    // Look up the schema from the in-memory map (loaded from blockchain)
+    let dataDecoded: Record<string, unknown> | null = null;
+    const schema = schemaMap.get(decoded.schema);
+    if (schema) {
+      try {
+        dataDecoded = decodeAttestationData(schema, decoded.data);
+      } catch (error) {
+        console.log(`   ⚠️  Failed to decode attestation data for ${pubkeyStr}:`, error);
+      }
+    }
+
     const attestation: Attestation = {
       pubkey: pubkeyStr,
       nonce: decoded.nonce,
@@ -223,7 +247,7 @@ async function scanAttestations(affectedAccounts?: Set<string>): Promise<void> {
       schema_pubkey: decoded.schema,
       schema_name: '',
       data_raw: Buffer.from(decoded.data),
-      data_decoded: null,
+      data_decoded: dataDecoded,
       signer: decoded.signer,
       expiry: Number(decoded.expiry),
       is_tokenized: decoded.token_account !== '11111111111111111111111111111111',
@@ -259,11 +283,17 @@ async function main() {
     const state = await getIndexerState();
     console.log(`\n📊 Last processed slot: ${state.last_processed_slot}`);
 
+    // Load existing schemas from DB into memory (needed for decoding attestations)
+    console.log('\n📚 Loading schemas from database...');
+    const schemaMap = await loadAllSchemas();
+
     if (state.last_processed_slot === 0) {
       console.log('\n⚡ First run - performing full scan...');
       await scanCredentials();
-      await scanSchemas();
-      await scanAttestations();
+      const newSchemas = await scanSchemas();
+      // Merge new schemas into the map
+      newSchemas.forEach((value, key) => schemaMap.set(key, value));
+      await scanAttestations(schemaMap);
 
       // Get the latest transaction signature for incremental updates
       const latestSignatures = await connection.getSignaturesForAddress(
@@ -281,10 +311,12 @@ async function main() {
       const { affectedAccounts, latestSlot, latestSignature } = await scanNewTransactions(state.last_processed_slot, state.last_processed_signature);
 
       if (affectedAccounts.size > 0) {
-        console.log('\n�� Updating affected accounts only...');
+        console.log('\n🔄 Updating affected accounts only...');
         await scanCredentials(affectedAccounts);
-        await scanSchemas(affectedAccounts);
-        await scanAttestations(affectedAccounts);
+        const newSchemas = await scanSchemas(affectedAccounts);
+        // Merge new schemas into the map
+        newSchemas.forEach((value, key) => schemaMap.set(key, value));
+        await scanAttestations(schemaMap, affectedAccounts);
 
         await updateIndexerState(latestSignature || '', latestSlot);
         console.log(`\n✅ Incremental update complete! Updated to slot ${latestSlot}`);

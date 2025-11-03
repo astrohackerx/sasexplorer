@@ -232,8 +232,32 @@ const compactLayoutMapping: Record<number, BorshSchema<any>> = {
   25: CHAR_SCHEMA,
 };
 
+function convertBigIntsToStrings(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (typeof obj === 'bigint') {
+    return obj.toString();
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(convertBigIntsToStrings);
+  }
+
+  if (typeof obj === 'object') {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = convertBigIntsToStrings(value);
+    }
+    return result;
+  }
+
+  return obj;
+}
+
 export function decodeAttestationData(
-  schema: DecodedSchema,
+  schema: { layout: number[]; field_names: string[] },
   attestationData: Uint8Array
 ): Record<string, unknown> | null {
   try {
@@ -259,7 +283,8 @@ export function decodeAttestationData(
     const borshSchema = BorshSchema.Struct(fields);
     const decoded = borshSchema.deserialize(attestationData);
 
-    return decoded as Record<string, unknown>;
+    // Convert BigInt values to strings for JSON compatibility
+    return convertBigIntsToStrings(decoded) as Record<string, unknown>;
   } catch (error) {
     console.error('Error decoding attestation data:', error);
     return null;

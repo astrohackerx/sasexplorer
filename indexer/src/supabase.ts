@@ -208,3 +208,29 @@ export async function getSchemaByPubkey(pubkey: string): Promise<Schema | null> 
 
   return data as Schema;
 }
+
+export async function loadAllSchemas(): Promise<Map<string, { layout: number[]; field_names: string[] }>> {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from('schemas')
+    .select('pubkey, layout, field_names');
+
+  if (error) {
+    console.error('Error loading schemas from DB:', error);
+    return new Map();
+  }
+
+  const schemaMap = new Map<string, { layout: number[]; field_names: string[] }>();
+
+  if (data) {
+    for (const schema of data) {
+      schemaMap.set(schema.pubkey, {
+        layout: schema.layout,
+        field_names: schema.field_names,
+      });
+    }
+    console.log(`   📚 Loaded ${schemaMap.size} schemas from database`);
+  }
+
+  return schemaMap;
+}
