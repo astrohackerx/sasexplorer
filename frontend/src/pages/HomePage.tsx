@@ -188,7 +188,7 @@ export function HomePage() {
           </div>
 
           <div className="diagram-card">
-            <h3>PDA-Owned Credentials</h3>
+            <h3>Top PDA-Owned Issuers</h3>
             <div className="pda-list">
               {pdaCredentials.length > 0 ? (
                 pdaCredentials.map((cred) => (
