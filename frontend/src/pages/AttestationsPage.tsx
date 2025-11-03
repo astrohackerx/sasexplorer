@@ -5,8 +5,12 @@ import type { Database } from '../lib/database.types';
 
 type Attestation = Database['public']['Tables']['attestations']['Row'];
 
+const PAGE_SIZE = 100;
+
 export function AttestationsPage() {
   const [attestations, setAttestations] = useState<Attestation[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchParams] = useSearchParams();
@@ -14,15 +18,25 @@ export function AttestationsPage() {
   const schemaFilter = searchParams.get('schema');
 
   useEffect(() => {
-    loadAttestations();
+    setCurrentPage(1);
+    loadAttestations(1);
   }, [credentialFilter, schemaFilter]);
 
-  async function loadAttestations() {
+  useEffect(() => {
+    loadAttestations(currentPage);
+  }, [currentPage]);
+
+  async function loadAttestations(page: number) {
     setLoading(true);
+
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     let query = supabase
       .from('attestations')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (credentialFilter) {
       query = query.eq('credential_pubkey', credentialFilter);
@@ -31,12 +45,13 @@ export function AttestationsPage() {
       query = query.eq('schema_pubkey', schemaFilter);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       console.error('Error loading attestations:', error);
     } else {
       setAttestations(data || []);
+      setTotalCount(count || 0);
     }
     setLoading(false);
   }
@@ -58,7 +73,7 @@ export function AttestationsPage() {
           <p className="page-subtitle">Verifiable credentials issued by authorized signers to holders</p>
         </div>
         <div className="page-stats">
-          <span className="stat-badge">{attestations.length} Attestations</span>
+          <span className="stat-badge">{totalCount.toLocaleString()} Attestations</span>
           {(credentialFilter || schemaFilter) && (
             <Link to="/attestations" className="clear-filter">
               Clear Filter
@@ -135,6 +150,31 @@ export function AttestationsPage() {
       {!loading && filteredAttestations.length === 0 && (
         <div className="empty-state">
           {searchTerm ? 'No attestations found matching your search' : 'No attestations yet'}
+        </div>
+      )}
+
+      {!loading && totalCount > PAGE_SIZE && (
+        <div className="pagination">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="pagination-btn"
+          >
+            Previous
+          </button>
+          <span className="pagination-info">
+            Page {currentPage} of {Math.ceil(totalCount / PAGE_SIZE)}
+            <span className="pagination-range">
+              {' '}(showing {((currentPage - 1) * PAGE_SIZE) + 1}-{Math.min(currentPage * PAGE_SIZE, totalCount)} of {totalCount.toLocaleString()})
+            </span>
+          </span>
+          <button
+            onClick={() => setCurrentPage(p => p + 1)}
+            disabled={currentPage >= Math.ceil(totalCount / PAGE_SIZE)}
+            className="pagination-btn"
+          >
+            Next
+          </button>
         </div>
       )}
     </div>
