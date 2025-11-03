@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { HomePage } from './pages/HomePage';
 import { CredentialsPage } from './pages/CredentialsPage';
 import { SchemasPage } from './pages/SchemasPage';
 import { AttestationsPage } from './pages/AttestationsPage';
@@ -12,7 +13,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<CredentialsPage />} />
+          <Route index element={<HomePage />} />
+          <Route path="credentials" element={<CredentialsPage />} />
           <Route path="schemas" element={<SchemasPage />} />
           <Route path="attestations" element={<AttestationsPage />} />
           <Route path="credential/:address" element={<CredentialDetailPage />} />

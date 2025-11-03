@@ -7,6 +7,9 @@ export function Layout() {
     if (path === '/') {
       return location.pathname === '/';
     }
+    if (path === '/credentials') {
+      return location.pathname.startsWith('/credential');
+    }
     return location.pathname.startsWith(path);
   };
 
@@ -23,7 +26,13 @@ export function Layout() {
               to="/"
               className={`nav-link ${isActive('/') && location.pathname === '/' ? 'active' : ''}`}
             >
-              Issuers
+              Home
+            </Link>
+            <Link
+              to="/credentials"
+              className={`nav-link ${isActive('/credentials') ? 'active' : ''}`}
+            >
+              Credentials
             </Link>
             <Link
               to="/schemas"

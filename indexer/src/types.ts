@@ -3,6 +3,7 @@ export interface Credential {
   authority: string;
   name: string;
   authorized_signers: string[];
+  is_pda_owned: boolean;
   signature: string;
 }
 

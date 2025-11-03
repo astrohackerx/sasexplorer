@@ -107,16 +107,20 @@ async function scanCredentials(affectedAccounts?: Set<string>): Promise<void> {
       continue;
     }
 
+    const isPdaOwned = !PublicKey.isOnCurve(new PublicKey(decoded.authority).toBytes());
+
     const credential: Credential = {
       pubkey: pubkeyStr,
       authority: decoded.authority,
       name: decoded.name,
       authorized_signers: decoded.authorized_signers,
+      is_pda_owned: isPdaOwned,
       signature: '',
     };
 
     credentials.push(credential);
-    console.log(`   ✅ ${decoded.name} (${pubkeyStr.substring(0, 8)}...)`);
+    const pdaLabel = isPdaOwned ? ' [PDA]' : '';
+    console.log(`   ✅ ${decoded.name}${pdaLabel} (${pubkeyStr.substring(0, 8)}...)`);
   }
 
   if (credentials.length > 0) {
@@ -300,7 +304,7 @@ async function runContinuously() {
   while (true) {
     await main();
     console.log('\n⏳ Waiting 60 seconds until next run...\n');
-    await new Promise(resolve => setTimeout(resolve, 60000));
+    await new Promise(resolve => setTimeout(resolve, 30000));
   }
 }
 
