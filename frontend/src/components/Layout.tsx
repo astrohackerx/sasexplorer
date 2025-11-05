@@ -72,8 +72,9 @@ export function Layout() {
         <div className="hero-content">
           <h1 className="hero-title">Solana Attestation Service Explorer</h1>
           <p className="hero-description">
-            The decentralized credential system for Solana—issue KYC verification, professional badges, and compliance credentials in minutes, not months.
+           Explore, manage, verify attestations and credentials seamlessly on the Solana blockchain. Open-source <a href="https://github.com/astrohackerx/sasexplorer" target="_blank">SAS explorer</a>
           </p>
+         
         </div>
       </div>
       <main className="main-content">
